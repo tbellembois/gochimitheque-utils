@@ -6,11 +6,15 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/tbellembois/gochimitheque-utils/global"
 )
 
 // SortEmpiricalFormula returns the sorted f empirical formula.
 func SortEmpiricalFormula(f string) (string, error) {
+
+	logrus.WithFields(logrus.Fields{"f": f}).Debug("SortEmpiricalFormula")
+
 	var (
 		err      error
 		newf, sp string
@@ -38,15 +42,17 @@ func SortEmpiricalFormula(f string) (string, error) {
 	}
 
 	return newf, nil
+
 }
 
 // SortFormula returns the sorted f formula.
 func SortFormula(f string) (string, error) {
+
+	logrus.WithFields(logrus.Fields{"f": f}).Debug("SortFormula")
+
 	var (
-		// 	hasCatom, hasHatom, hasOtherAtom, hasUpperLowerAtom bool
 		hasCatom, hasHatom, hasOatom, hasULatom bool
 		upperLowerAtoms, otherAtoms             []string
-		// 	lastPart                                            string
 	)
 
 	// removing spaces
@@ -69,6 +75,7 @@ func SortFormula(f string) (string, error) {
 	// counting atoms at the same time and leaving on duplicates
 	atomcount := make(map[string]int)
 	for _, a := range ula {
+
 		// wrong?
 		if _, ok := global.Atoms[a[2]]; !ok {
 			return "", errors.New("wrong UL atom in formula: " + a[2])
@@ -83,6 +90,7 @@ func SortFormula(f string) (string, error) {
 		}
 		// removing from formula for the next steps
 		f = strings.Replace(f, a[0], "", -1)
+
 	}
 	if len(upperLowerAtoms) > 0 {
 		hasULatom = true
@@ -146,6 +154,9 @@ func SortFormula(f string) (string, error) {
 		hasOatom = true
 	}
 
+	logrus.WithFields(logrus.Fields{"f": f}).Debug("SortFormula")
+	logrus.WithFields(logrus.Fields{"len(f)": len(f)}).Debug("SortFormula")
+
 	// if formula is not emty, this is an error
 	if len(f) != 0 {
 		return "", errors.New("wrong lowercase atoms in formula")
@@ -168,4 +179,5 @@ func SortFormula(f string) (string, error) {
 	}
 
 	return newf, nil
+
 }
