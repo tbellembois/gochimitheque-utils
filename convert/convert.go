@@ -19,16 +19,19 @@ func LinearToEmpiricalFormula(f string) string {
 
 	var ef string
 
-	s := "-"
-	nf := ""
+	// s := "-"
+	nf := f
 
 	// Finding the first (XYZ)n match
 	reg := global.OneGroupMolRe
 
 	atomCount := make(map[string]int)
-	for s != "" {
-		s = reg.FindString(f)
+	for _, s := range reg.FindAllString(f, -1) {
+
 		logrus.WithFields(logrus.Fields{"s": s}).Debug("LinearToEmpiricalFormula")
+
+		// Removing the match from the original formula.
+		nf = strings.Replace(nf, s, "", -1)
 
 		// Counting the atoms and rebuilding the molecule string
 		m := count.AtomCount(s)
@@ -54,10 +57,11 @@ func LinearToEmpiricalFormula(f string) string {
 	logrus.WithFields(logrus.Fields{"ms": ms}).Debug("LinearToEmpiricalFormula")
 
 	// Then replacing the match with the molecule string - nf is for "new f"
-	nf = strings.Replace(f, s, ms, 1)
+	nf = ms + nf
 
 	// Counting the atoms
 	bAc := count.BaseAtomCount(nf)
+	logrus.WithFields(logrus.Fields{"bAc": bAc}).Debug("LinearToEmpiricalFormula")
 
 	// Sorting the atoms
 	// C, H and then in alphabetical order

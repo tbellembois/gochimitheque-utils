@@ -3,6 +3,7 @@ package count
 import (
 	"strconv"
 
+	"github.com/sirupsen/logrus"
 	"github.com/tbellembois/gochimitheque-utils/global"
 )
 
@@ -13,6 +14,9 @@ import (
 // CH3CH(NO2)CH3 will return "N":1 "O":2
 // CH3CH(NO2)(CH3)2 will return "N":1 "O":2 - process only the first match
 func AtomCount(f string) map[string]int {
+
+	logrus.WithFields(logrus.Fields{"f": f}).Debug("AtomCount")
+
 	var (
 		// the result map
 		c = make(map[string]int)
@@ -41,6 +45,7 @@ func AtomCount(f string) map[string]int {
 	}
 
 	return c
+
 }
 
 // BaseAtomCount returns a count of the atoms of the f formula as a map.
@@ -49,6 +54,9 @@ func AtomCount(f string) map[string]int {
 // C6H5COC6H4CO2H will return "C1":4, "H":10, "O":3
 // CH3CH(NO2)CH3 will return Nil, parenthesis are not allowed
 func BaseAtomCount(f string) map[string]int {
+
+	logrus.WithFields(logrus.Fields{"f": f}).Debug("BaseAtomCount")
+
 	var (
 		// the result map
 		c   = make(map[string]int)
@@ -66,6 +74,8 @@ func BaseAtomCount(f string) map[string]int {
 	// capture1 is the atom
 	// capture2 is the its number
 	sl := r.FindAllStringSubmatch(f, -1)
+	logrus.WithFields(logrus.Fields{"sl": sl}).Debug("BaseAtomCount")
+
 	for _, i := range sl {
 		atom := i[1]
 		var nbAtom int
@@ -84,4 +94,5 @@ func BaseAtomCount(f string) map[string]int {
 		}
 	}
 	return c
+
 }

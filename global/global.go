@@ -163,7 +163,7 @@ func init() {
 	// removing the last |
 	buf.Truncate(buf.Len() - 1)
 	buf.WriteString(")")
-	buf.WriteString("([1-9]+)*")
+	buf.WriteString("([0-9]+)*")
 	BasicMolRe = regexp.MustCompilePOSIX(buf.String())
 
 	// building the one group molecule regex
@@ -176,9 +176,9 @@ func init() {
 	}
 	// removing the last |
 	buf.Truncate(buf.Len() - 1)
-	buf.WriteString("]+[1-9]*)+)")
+	buf.WriteString("]+[0-9]*)+)")
 	buf.WriteString("(?:\\)|\\])")
-	buf.WriteString("([1-9]*)")
+	buf.WriteString("([0-9]*)")
 
 	OneGroupMolRe = regexp.MustCompile(buf.String())
 
