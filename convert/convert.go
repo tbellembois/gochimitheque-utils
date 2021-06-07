@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/tbellembois/gochimitheque-utils/count"
 	"github.com/tbellembois/gochimitheque-utils/global"
 )
@@ -13,6 +14,9 @@ import (
 // example: [(CH3)2SiH]2NH
 //          (CH3)2C[C6H2(Br)2OH]2
 func LinearToEmpiricalFormula(f string) string {
+
+	logrus.WithFields(logrus.Fields{"f": f}).Debug("LinearToEmpiricalFormula")
+
 	var ef string
 
 	s := "-"
@@ -21,23 +25,36 @@ func LinearToEmpiricalFormula(f string) string {
 	// Finding the first (XYZ)n match
 	reg := global.OneGroupMolRe
 
+	atomCount := make(map[string]int)
 	for s != "" {
 		s = reg.FindString(f)
+		logrus.WithFields(logrus.Fields{"s": s}).Debug("LinearToEmpiricalFormula")
 
 		// Counting the atoms and rebuilding the molecule string
 		m := count.AtomCount(s)
-		ms := "" // molecule string
+		logrus.WithFields(logrus.Fields{"m": m}).Debug("LinearToEmpiricalFormula")
+
 		for k, v := range m {
-			ms += k
-			if v != 1 {
-				ms += fmt.Sprintf("%d", v)
+			if _, ok := atomCount[k]; ok {
+				atomCount[k] = atomCount[k] + v
+			} else {
+				atomCount[k] = v
 			}
 		}
 
-		// Then replacing the match with the molecule string - nf is for "new f"
-		nf = strings.Replace(f, s, ms, 1)
-		f = nf
 	}
+
+	ms := "" // molecule string
+	for k, v := range atomCount {
+		ms += k
+		if v != 1 {
+			ms += fmt.Sprintf("%d", v)
+		}
+	}
+	logrus.WithFields(logrus.Fields{"ms": ms}).Debug("LinearToEmpiricalFormula")
+
+	// Then replacing the match with the molecule string - nf is for "new f"
+	nf = strings.Replace(f, s, ms, 1)
 
 	// Counting the atoms
 	bAc := count.BaseAtomCount(nf)
