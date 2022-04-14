@@ -1,1 +1,1 @@
-WASM module of the [Chimithèque](https://github.com/tbellembois/gochimitheque) project.
+Utils module of the [Chimithèque](https://github.com/tbellembois/gochimitheque) project.
