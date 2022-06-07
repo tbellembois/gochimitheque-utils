@@ -159,7 +159,7 @@ func SortFormula(f string) (string, error) {
 
 	// if formula is not emty, this is an error
 	if len(f) != 0 {
-		return "", errors.New("wrong lowercase atoms in formula")
+		return "", errors.New("wrong lowercase atoms in formula: " + f)
 	}
 
 	// rebuilding the formula
