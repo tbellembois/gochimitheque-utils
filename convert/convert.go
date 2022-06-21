@@ -1,100 +1,248 @@
 package convert
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/sirupsen/logrus"
-	"github.com/tbellembois/gochimitheque-utils/count"
 	"github.com/tbellembois/gochimitheque-utils/global"
 )
 
-// LinearToEmpiricalFormula returns the empirical formula from the linear formula f.
-// example: [(CH3)2SiH]2NH
-//          (CH3)2C[C6H2(Br)2OH]2
-func LinearToEmpiricalFormula(f string) string {
+type AtomCount struct {
+	Atom         string
+	BlockIDStack []int
+	Count        int
+}
 
-	logrus.WithFields(logrus.Fields{"f": f}).Debug("LinearToEmpiricalFormula")
+func ToEmpiricalFormula(formula string) (empiricalFormula string, err error) {
 
-	var ef string
+	var suffix string
 
-	// s := "-"
-	nf := f
+	dotSplittedFormula := strings.Split(formula, ".")
 
-	// Finding the first (XYZ)n match
-	reg := global.OneGroupMolRe
+	if len(dotSplittedFormula) > 1 {
+		formula = dotSplittedFormula[0]
 
-	atomCount := make(map[string]int)
-	for _, s := range reg.FindAllString(f, -1) {
-
-		logrus.WithFields(logrus.Fields{"s": s}).Debug("LinearToEmpiricalFormula")
-
-		// Removing the match from the original formula.
-		nf = strings.Replace(nf, s, "", -1)
-
-		// Counting the atoms and rebuilding the molecule string
-		m := count.AtomCount(s)
-		logrus.WithFields(logrus.Fields{"m": m}).Debug("LinearToEmpiricalFormula")
-
-		for k, v := range m {
-			if _, ok := atomCount[k]; ok {
-				atomCount[k] = atomCount[k] + v
-			} else {
-				atomCount[k] = v
+		for i := range dotSplittedFormula {
+			if i == 0 {
+				continue
 			}
+
+			suffix += dotSplittedFormula[i]
 		}
 
+		suffix = "." + suffix
 	}
 
-	ms := "" // molecule string
-	for k, v := range atomCount {
-		ms += k
-		if v != 1 {
-			ms += fmt.Sprintf("%d", v)
+	f := []rune(formula)
+
+	var (
+		// Current parenthesis block while parsing the formula.
+		currentBlockID int
+		// Block ID stack while parsing the formula.
+		blockIDStack []int
+		// Current index while parsing the formula.
+		currentIndex int
+		// Current char while parsing the formula.
+		currentChar rune
+		// Char after currentChar.
+		currentCharPlusOne rune
+		// Char after currentCharPlusOne.
+		currentCharPlusTwo rune
+
+		uppercaseCharRe *regexp.Regexp
+		lowercaseCharRe *regexp.Regexp
+
+		atomCountList []*AtomCount
+	)
+
+	if uppercaseCharRe, err = regexp.Compile("[A-Z]"); err != nil {
+		return
+	}
+
+	if lowercaseCharRe, err = regexp.Compile("[a-z]"); err != nil {
+		return
+	}
+
+	for currentIndex < len(f) {
+		currentChar = f[currentIndex]
+
+		if currentIndex < len(f)-1 {
+			currentCharPlusOne = f[currentIndex+1]
+		} else {
+			currentCharPlusOne = ' '
 		}
-	}
-	logrus.WithFields(logrus.Fields{"ms": ms}).Debug("LinearToEmpiricalFormula")
 
-	// Then replacing the match with the molecule string - nf is for "new f"
-	nf = ms + nf
+		if currentIndex < len(f)-2 {
+			currentCharPlusTwo = f[currentIndex+2]
+		} else {
+			currentCharPlusTwo = ' '
+		}
 
-	// Counting the atoms
-	bAc := count.BaseAtomCount(nf)
-	logrus.WithFields(logrus.Fields{"bAc": bAc}).Debug("LinearToEmpiricalFormula")
+		switch string(currentChar) {
+		case "(", "[":
+			blockIDStack = append(blockIDStack, currentBlockID)
+			currentBlockID++
+		case ")", "]":
+			if unicode.IsDigit(currentCharPlusOne) {
+				var (
+					multiplier int
+				)
 
-	// Sorting the atoms
-	// C, H and then in alphabetical order
-	var ats []string // atoms
-	hasC := false    // C atom present
-	hasH := false    // H atom present
+				if multiplier, err = strconv.Atoi(string(currentCharPlusOne)); err != nil {
+					logrus.Errorln(err)
+					return
+				}
 
-	for k := range bAc {
-		switch k {
-		case "C":
-			hasC = true
-		case "H":
-			hasH = true
+				for _, a := range atomCountList {
+					for _, bid := range a.BlockIDStack {
+						if bid == blockIDStack[len(blockIDStack)-1] {
+							a.Count *= multiplier
+						}
+					}
+				}
+			}
+
+			if len(blockIDStack) == 0 {
+				err = errors.New("invalid parenthesis")
+				return
+			}
+
+			blockIDStack = blockIDStack[:len(blockIDStack)-1]
+
 		default:
-			ats = append(ats, k)
+			var (
+				atom string
+			)
+
+			multiplier := 1
+
+			// Is the current char the beginning of an atom?
+			if uppercaseCharRe.MatchString(string(currentChar)) {
+				atom = string(currentChar)
+
+				// Is the following char still part of the current atom.
+				if lowercaseCharRe.MatchString(string(currentCharPlusOne)) {
+					// Two chars atom.
+					atom += string(currentCharPlusOne)
+
+					// Finding possible multiplier.
+					if unicode.IsDigit(currentCharPlusTwo) {
+						if multiplier, err = strconv.Atoi(string(currentCharPlusTwo)); err != nil {
+							logrus.Errorln(err)
+							return
+						}
+					}
+
+					currentIndex++
+				} else {
+					// One char atom.
+					// Finding possible multiplier.
+					if unicode.IsDigit(currentCharPlusOne) {
+						if multiplier, err = strconv.Atoi(string(currentCharPlusOne)); err != nil {
+							logrus.Errorln(err)
+							return
+						}
+					}
+				}
+			} else {
+				// Any other char.
+				currentIndex++
+
+				continue
+			}
+
+			// Validating the atom.
+			var found bool
+
+			for _, a := range global.SortedByLengthAtoms {
+				if a == atom {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				err = errors.New("invalid atom")
+				return
+			}
+
+			blockIDStackCopy := make([]int, len(blockIDStack))
+
+			copy(blockIDStackCopy, blockIDStack)
+
+			atomCountList = append(atomCountList, &AtomCount{
+				Atom:         atom,
+				BlockIDStack: blockIDStackCopy,
+				Count:        multiplier,
+			})
+		}
+
+		currentIndex++
+	}
+
+	atomCount := map[string]int{}
+
+	// Counting atoms.
+	for _, a := range atomCountList {
+		atom := a.Atom
+		count := a.Count
+
+		if currentCount, ok := atomCount[atom]; ok {
+			atomCount[atom] = currentCount + count
+		} else {
+			atomCount[atom] = count
 		}
 	}
-	sort.Strings(ats)
 
-	if hasH {
-		ats = append([]string{"H"}, ats...)
-	}
-	if hasC {
-		ats = append([]string{"C"}, ats...)
-	}
-
-	for _, at := range ats {
-		ef += at
-		nb := bAc[at]
-		if nb != 1 {
-			ef += fmt.Sprintf("%d", nb)
+	// Building empirical formula.
+	// C, H and then in alphabetical order.
+	if CCount, ok := atomCount["C"]; ok {
+		count := ""
+		if CCount != 1 {
+			count = strconv.Itoa(CCount)
 		}
+
+		empiricalFormula = fmt.Sprintf("%sC%s", empiricalFormula, count)
+
+		delete(atomCount, "C")
 	}
 
-	return ef
+	if HCount, ok := atomCount["H"]; ok {
+		count := ""
+		if HCount != 1 {
+			count = strconv.Itoa(HCount)
+		}
+
+		empiricalFormula = fmt.Sprintf("%sH%s", empiricalFormula, count)
+
+		delete(atomCount, "H")
+	}
+
+	atomCountKeys := make([]string, 0, len(atomCount))
+	for k := range atomCount {
+		atomCountKeys = append(atomCountKeys, k)
+	}
+
+	sort.Strings(atomCountKeys)
+
+	for _, k := range atomCountKeys {
+		count := ""
+		if atomCount[k] != 1 {
+			count = strconv.Itoa(atomCount[k])
+		}
+
+		empiricalFormula = fmt.Sprintf("%s%s%s", empiricalFormula, k, count)
+	}
+
+	empiricalFormula += suffix
+
+	logrus.WithFields(logrus.Fields{"empiricalFormula": empiricalFormula}).Debug("ToEmpiricalFormula")
+
+	return
 }

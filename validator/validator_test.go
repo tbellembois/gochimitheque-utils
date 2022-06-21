@@ -2,7 +2,6 @@ package validator_test
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
 	"testing"
 
@@ -19,7 +18,7 @@ func TestIsCasNumber(t *testing.T) {
 		err     error
 	)
 
-	if csvFile, err = os.Open("../testdata.csv"); err != nil {
+	if csvFile, err = os.Open("../test_casnumber.csv"); err != nil {
 		t.Errorf("can not open csv file: %v", err)
 	}
 
@@ -37,8 +36,6 @@ func TestIsCasNumber(t *testing.T) {
 	}
 
 	for _, record := range records {
-
-		fmt.Println(record)
 
 		cas := record[1]
 
