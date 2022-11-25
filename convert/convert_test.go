@@ -58,3 +58,19 @@ func TestToEmpiricalFormula(t *testing.T) {
 	}
 
 }
+
+func TestOneToEmpiricalFormula(t *testing.T) {
+
+	logrus.SetLevel(logrus.DebugLevel)
+
+	converted, err := convert.ToEmpiricalFormula("C2")
+
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	if converted != "C2" {
+		t.Errorf("C2 not converted, got %s", converted)
+	}
+
+}

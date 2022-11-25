@@ -52,8 +52,6 @@ func ToEmpiricalFormula(formula string) (empiricalFormula string, err error) {
 		currentChar rune
 		// Char after currentChar.
 		currentCharPlusOne rune
-		// Char after currentCharPlusOne.
-		currentCharPlusTwo rune
 
 		uppercaseCharRe *regexp.Regexp
 		lowercaseCharRe *regexp.Regexp
@@ -61,27 +59,18 @@ func ToEmpiricalFormula(formula string) (empiricalFormula string, err error) {
 		atomCountList []*AtomCount
 	)
 
-	if uppercaseCharRe, err = regexp.Compile("[A-Z]"); err != nil {
-		return
-	}
-
-	if lowercaseCharRe, err = regexp.Compile("[a-z]"); err != nil {
-		return
-	}
+	uppercaseCharRe = regexp.MustCompile("[A-Z]")
+	lowercaseCharRe = regexp.MustCompile("[a-z]")
 
 	for currentIndex < len(f) {
 		currentChar = f[currentIndex]
+
+		// fmt.Printf("%d:%s\n", currentIndex, string(currentChar))
 
 		if currentIndex < len(f)-1 {
 			currentCharPlusOne = f[currentIndex+1]
 		} else {
 			currentCharPlusOne = ' '
-		}
-
-		if currentIndex < len(f)-2 {
-			currentCharPlusTwo = f[currentIndex+2]
-		} else {
-			currentCharPlusTwo = ' '
 		}
 
 		switch string(currentChar) {
@@ -132,19 +121,71 @@ func ToEmpiricalFormula(formula string) (empiricalFormula string, err error) {
 					atom += string(currentCharPlusOne)
 
 					// Finding possible multiplier.
-					if unicode.IsDigit(currentCharPlusTwo) {
-						if multiplier, err = strconv.Atoi(string(currentCharPlusTwo)); err != nil {
+					var (
+						multiplierString  string
+						hasMultiplier     bool
+						hasIncreasedIndex bool
+					)
+
+					if currentIndex < len(f)-1 {
+						currentIndex++
+						hasIncreasedIndex = true
+					}
+
+					for unicode.IsDigit(f[currentIndex]) {
+						hasMultiplier = true
+						multiplierString += string(f[currentIndex])
+
+						// fmt.Println("multiplierString:" + multiplierString)
+						if currentIndex < len(f)-1 {
+							currentIndex++
+						} else {
+							break
+						}
+					}
+
+					if hasIncreasedIndex {
+						currentIndex--
+					}
+
+					if hasMultiplier {
+						if multiplier, err = strconv.Atoi(multiplierString); err != nil {
 							logrus.Errorln(err)
 							return
 						}
 					}
 
-					currentIndex++
 				} else {
 					// One char atom.
 					// Finding possible multiplier.
-					if unicode.IsDigit(currentCharPlusOne) {
-						if multiplier, err = strconv.Atoi(string(currentCharPlusOne)); err != nil {
+
+					var (
+						multiplierString  string
+						hasMultiplier     bool
+						hasIncreasedIndex bool
+					)
+
+					if currentIndex < len(f)-1 {
+						currentIndex++
+						hasIncreasedIndex = true
+					}
+					for unicode.IsDigit(f[currentIndex]) {
+						hasMultiplier = true
+						multiplierString += string(f[currentIndex])
+
+						// fmt.Println("multiplierString:" + multiplierString)
+						if currentIndex < len(f)-1 {
+							currentIndex++
+						} else {
+							break
+						}
+					}
+					if hasIncreasedIndex {
+						currentIndex--
+					}
+
+					if hasMultiplier {
+						if multiplier, err = strconv.Atoi(multiplierString); err != nil {
 							logrus.Errorln(err)
 							return
 						}
